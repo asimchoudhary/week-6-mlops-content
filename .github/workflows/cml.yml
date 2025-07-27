@@ -1,4 +1,4 @@
-name: CML CI/CD Pipeline
+name: CML CI/CD Pipeline for Iris API
 on: [push]
 
 jobs:
@@ -7,6 +7,10 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      # Set up CML
+      - uses: iterative/setup-cml@v1
+      
+      # Set up Google Cloud using your secrets
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
@@ -14,22 +18,53 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           export_default_credentials: true
       
-      # Configure Docker for Artifact Registry
-      - name: Configure Docker
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
-      
-      # Build Docker image
-      - name: Build Docker Image
+      # Install GKE auth plugin
+      - name: Install GKE Auth Plugin
         run: |
-          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }} .
+          gcloud components install gke-gcloud-auth-plugin
+          echo "USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
       
-      # Push to Artifact Registry
-      - name: Push to Registry
+      # Build and push Docker image
+      - name: Build and Push Docker Image
         run: |
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }} .
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
       
+      # Deploy to GKE
       - name: Deploy to GKE
         run: |
           gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
-          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
+          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
           kubectl rollout restart deployment/iris-deployment
+          kubectl rollout status deployment/iris-deployment --timeout=300s
+          
+      # Generate CML Report
+      - name: Create CML Report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## 🚀 ML Model Deployment Report" > report.md
+          echo "**Project**: Iris Classification API" >> report.md
+          echo "**Commit**: ${{ github.sha }}" >> report.md
+          echo "**Image**: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}" >> report.md
+          echo "**Status**: ✅ Deployed Successfully" >> report.md
+          echo "" >> report.md
+          echo "### 📊 Deployment Details" >> report.md
+          kubectl get deployments iris-deployment -o wide >> report.md
+          echo "" >> report.md
+          echo "### 🌐 Service Information" >> report.md
+          kubectl get service iris-service -o wide >> report.md
+          echo "" >> report.md
+          EXTERNAL_IP=$(kubectl get service iris-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          if [ ! -z "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
+            echo "### 🧪 API Testing" >> report.md
+            echo "**Endpoint**: http://$EXTERNAL_IP" >> report.md
+            echo "**Test Command**:" >> report.md
+            echo '```
+            echo "curl -X POST \"http://$EXTERNAL_IP/predict/\" \\" >> report.md
+            echo '  -H "Content-Type: application/json" \' >> report.md
+            echo '  -d '"'"'{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}'"'"'' >> report.md
+            echo '```' >> report.md
+          fi
+          cml comment create report.md
