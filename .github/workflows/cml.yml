@@ -37,7 +37,7 @@ jobs:
           DOCKER_BUILDKIT: 0
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -t us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest.
+          docker build -t us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest .
           docker push us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest .    # Deploy to GKE
       - name: Deploy to GKE
         run: |
