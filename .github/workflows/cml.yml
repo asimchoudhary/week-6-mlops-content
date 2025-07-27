@@ -19,6 +19,18 @@ jobs:
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
       
+      # Verify authentication and permissions
+      - name: Verify Setup
+        run: |
+          echo "=== Verifying GCP Authentication ==="
+          gcloud auth list
+          echo "=== Verifying Project ==="
+          gcloud config get-value project
+          echo "=== Verifying Artifact Registry Access ==="
+          gcloud artifacts repositories list --location=us-central1
+          echo "=== Verifying GKE Access ==="
+          gcloud container clusters list --zone=us-central1
+      
       # Build Docker image
       - name: Build Docker Image
         run: |
