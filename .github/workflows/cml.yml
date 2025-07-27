@@ -31,12 +31,14 @@ jobs:
       
       # Build and push Docker image (FIXED)
       # Build and push Docker image (CORRECTED)
+# Build and Push Docker Image (FIXED)
       - name: Build and Push Docker Image
+        env:
+          DOCKER_BUILDKIT: 0
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
           docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }} .
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
-      # Deploy to GKE
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}      # Deploy to GKE
       - name: Deploy to GKE
         run: |
           gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
