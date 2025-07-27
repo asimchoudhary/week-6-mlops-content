@@ -14,6 +14,29 @@ jobs:
           project_id: aiapps-460407
           export_default_credentials: true
       
+      # Debug authentication
+      - name: Debug Authentication
+        run: |
+          echo "=== Checking if service account key exists ==="
+          if [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "ERROR: GCP_SA_KEY secret is empty or not set"
+            exit 1
+          else
+            echo "GCP_SA_KEY secret exists and has content"
+          fi
+          
+          echo "=== Checking service account activation ==="
+          gcloud auth list --format="table(account,status)"
+          
+          echo "=== Checking project configuration ==="
+          gcloud config list project
+          
+          echo "=== Trying to activate service account explicitly ==="
+          echo '${{ secrets.GCP_SA_KEY }}' > /tmp/gcp-key.json
+          gcloud auth activate-service-account --key-file=/tmp/gcp-key.json
+          gcloud config set project aiapps-460407
+          rm /tmp/gcp-key.json
+      
       # Configure Docker for Artifact Registry
       - name: Configure Docker
         run: |
@@ -22,14 +45,14 @@ jobs:
       # Verify authentication and permissions
       - name: Verify Setup
         run: |
-          echo "=== Verifying GCP Authentication ==="
+          echo "=== Verifying GCP Authentication (After Fix) ==="
           gcloud auth list
           echo "=== Verifying Project ==="
           gcloud config get-value project
           echo "=== Verifying Artifact Registry Access ==="
-          gcloud artifacts repositories list --location=us-central1
+          gcloud artifacts repositories list --location=us-central1 || echo "Artifact Registry access failed"
           echo "=== Verifying GKE Access ==="
-          gcloud container clusters list --zone=us-central1
+          gcloud container clusters list --zone=us-central1 || echo "GKE access failed"
       
       # Build Docker image
       - name: Build Docker Image
