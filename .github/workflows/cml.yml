@@ -33,45 +33,47 @@ jobs:
       # Build and push Docker image (CORRECTED)
 # Build and Push Docker Image (FIXED)
       - name: Build and Push Docker Image
-        env:
-          DOCKER_BUILDKIT: 0
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -t us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest .
-          docker push us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest .    # Deploy to GKE
+  env:
+    DOCKER_BUILDKIT: 0
+  run: |
+    gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+    docker build -t us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest .
+    docker push us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:latest  # Removed extra dot here
+  
       - name: Deploy to GKE
-        run: |
-          gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
-          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
-          kubectl rollout restart deployment/iris-deployment
-          kubectl rollout status deployment/iris-deployment --timeout=300s
-          
-      # Generate CML Report
-      - name: Create CML Report
-        env:
-          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "## 🚀 ML Model Deployment Report" > report.md
-          echo "**Project**: Iris Classification API" >> report.md
-          echo "**Commit**: ${{ github.sha }}" >> report.md
-          echo "**Image**: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}" >> report.md
-          echo "**Status**: ✅ Deployed Successfully" >> report.md
-          echo "" >> report.md
-          echo "### 📊 Deployment Details" >> report.md
-          kubectl get deployments iris-deployment -o wide >> report.md
-          echo "" >> report.md
-          echo "### 🌐 Service Information" >> report.md
-          kubectl get service iris-service -o wide >> report.md
-          echo "" >> report.md
-          EXTERNAL_IP=$(kubectl get service iris-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-          if [ ! -z "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
-            echo "### 🧪 API Testing" >> report.md
-            echo "**Endpoint**: http://$EXTERNAL_IP" >> report.md
-            echo "**Test Command**:" >> report.md
-            echo '```
-            echo "curl -X POST \"http://$EXTERNAL_IP/predict/\" \\" >> report.md
-            echo '  -H "Content-Type: application/json" \' >> report.md
-            echo '  -d '"'"'{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}'"'"'' >> report.md
-            echo '```' >> report.md
-          fi
-          cml comment create report.md
+    run: |
+      gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
+      kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
+      kubectl rollout restart deployment/iris-deployment
+      kubectl rollout status deployment/iris-deployment --timeout=300s
+
+# Generate CML Report
+- name: Create CML Report
+  env:
+    REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  run: |
+    echo "## 🚀 ML Model Deployment Report" > report.md
+    echo "**Project**: Iris Classification API" >> report.md
+    echo "**Commit**: ${{ github.sha }}" >> report.md
+    echo "**Image**: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}" >> report.md
+    echo "**Status**: ✅ Deployed Successfully" >> report.md
+    echo "" >> report.md
+    echo "### 📊 Deployment Details" >> report.md
+    kubectl get deployments iris-deployment -o wide >> report.md
+    echo "" >> report.md
+    echo "### 🌐 Service Information" >> report.md
+    kubectl get service iris-service -o wide >> report.md
+    echo "" >> report.md
+    
+    EXTERNAL_IP=$(kubectl get service iris-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    if [ ! -z "$EXTERNAL_IP" ] && [ "$EXTERNAL_IP" != "null" ]; then
+      echo "### 🧪 API Testing" >> report.md
+      echo "**Endpoint**: http://$EXTERNAL_IP" >> report.md
+      echo "**Test Command**:" >> report.md
+      echo '```
+      echo "curl -X POST \"http://$EXTERNAL_IP/predict/\" \\" >> report.md
+      echo '  -H "Content-Type: application/json" \' >> report.md
+      echo '  -d '\''{"sepal_length": 5.1, "sepal_width": 3.5, "petal_length": 1.4, "petal_width": 0.2}'\'' ' >> report.md
+      echo '```' >> report.md
+    fi
+    cml comment create report.md
