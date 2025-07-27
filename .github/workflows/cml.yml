@@ -21,18 +21,20 @@ jobs:
       
       # Build Docker image
       - name: Build Docker Image
+        env:
+          DOCKER_BUILDKIT: 0
         run: |
-          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }} .
+          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }} .
       
       # Push to Artifact Registry
       - name: Push to Registry
         run: |
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
+          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
       
       - name: Deploy to GKE
         run: |
           gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
-          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
+          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}
           kubectl rollout restart deployment/iris-deployment
           kubectl rollout status deployment/iris-deployment --timeout=300s
 
@@ -43,7 +45,7 @@ jobs:
           echo "## 🚀 ML Model Deployment Report" > report.md
           echo "**Project**: Iris Classification API" >> report.md
           echo "**Commit**: ${{ github.sha }}" >> report.md
-          echo "**Image**: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}" >> report.md
+          echo "**Image**: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-repo/iris-api:${{ github.sha }}" >> report.md
           echo "**Status**: ✅ Deployed Successfully" >> report.md
           echo "" >> report.md
           echo "### 📊 Deployment Details" >> report.md
