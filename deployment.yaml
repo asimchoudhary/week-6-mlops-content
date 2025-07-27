@@ -1,37 +1,27 @@
-name: CML CI/CD Pipeline
-on: [push]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      # Set up Google Cloud SDK
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
-        with:
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          export_default_credentials: true
-      
-      # Configure Docker for Artifact Registry
-      - name: Configure Docker
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev
-      
-      # Build Docker image
-      - name: Build Docker Image
-        run: |
-          docker build -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }} .
-      
-      # Push to Artifact Registry
-      - name: Push to Registry
-        run: |
-          docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
-      
-      # Deploy to GKE
-      - name: Deploy to GKE
-        run: |
-          gcloud container clusters get-credentials iris-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
-          kubectl set image deployment/iris-deployment iris-api=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/iris-repo/iris-api:${{ github.sha }}
-          kubectl rollout restart deployment/iris-deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iris-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: iris-api
+  template:
+    metadata:
+      labels:
+        app: iris-api
+    spec:
+      containers:
+      - name: iris-api
+        image: us-central1-docker.pkg.dev/aiapps-460407/my-repo/iris-api:14585289e0
+        ports:
+        - containerPort: 8200
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
