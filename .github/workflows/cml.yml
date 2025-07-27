@@ -1,6 +1,11 @@
 name: CML CI/CD Pipeline
 on: [push]
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -114,4 +119,10 @@ jobs:
             echo '  -d '\''{\"sepal_length\": 5.1, \"sepal_width\": 3.5, \"petal_length\": 1.4, \"petal_width\": 0.2}'\'' ' >> report.md
             echo '```' >> report.md
           fi
-          cml comment create report.md
+          
+          echo "=== DEPLOYMENT REPORT ==="
+          cat report.md
+          echo "========================="
+          
+          # Try to create comment, but don't fail if it doesn't work
+          cml comment create report.md || echo "Could not create GitHub comment, but deployment was successful!"
